@@ -1,0 +1,1 @@
+{"event_id":"medallio:raw_cygnus.clientes_proyectos:run-123","event_type":"medallio.table.refreshed.v1","run_id":"run-123","source_table":"raw_cygnus.clientes_proyectos","status":"SUCCESS","rows_loaded":7,"watermark":"2026-08-20T21:00:12-05:00"}
