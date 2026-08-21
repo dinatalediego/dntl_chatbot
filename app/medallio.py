@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import MetaData, Table, create_engine, inspect, select
 
@@ -28,20 +28,25 @@ def fetch_updated_leads(since: datetime | None, until: datetime | None) -> list[
             selected.append(col)
     table = Table(settings.medallio_table, MetaData(), autoload_with=engine, schema=schema)
     wm = table.c[settings.medallio_watermark_column]
-    effective_since = since or datetime.now(timezone.utc) - timedelta(hours=24)
+    effective_since = since or datetime.now(UTC) - timedelta(hours=24)
     stmt = select(*(table.c[c] for c in selected)).where(wm > effective_since)
     if until:
         stmt = stmt.where(wm <= until)
     with engine.connect() as conn:
         rows = conn.execute(stmt.order_by(wm)).mappings().all()
+
     def value(row, candidates):
         return next((row[c] for c in candidates if c in row and row[c] not in (None, "")), None)
-    return [{
-        "source_lead_id": str(r[settings.medallio_id_column]),
-        "source_updated_at": r[settings.medallio_watermark_column],
-        "person_name": value(r, NAME),
-        "phone_e164": value(r, PHONE),
-        "project": value(r, PROJECT),
-        "opted_in": bool(value(r, OPTIN)),
-        "source_snapshot": {k: v for k, v in dict(r).items() if k not in PHONE},
-    } for r in rows]
+
+    return [
+        {
+            "source_lead_id": str(r[settings.medallio_id_column]),
+            "source_updated_at": r[settings.medallio_watermark_column],
+            "person_name": value(r, NAME),
+            "phone_e164": value(r, PHONE),
+            "project": value(r, PROJECT),
+            "opted_in": bool(value(r, OPTIN)),
+            "source_snapshot": {k: v for k, v in dict(r).items() if k not in PHONE},
+        }
+        for r in rows
+    ]
